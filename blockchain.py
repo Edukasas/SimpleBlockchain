@@ -3,22 +3,24 @@ import random
 import time
 
 
-class User:
-    def __init__(self, name, public_key, balance):
-        self.name = name
-        self.public_key = public_key
-        self.balance = balance
+class UTXO:
+    def __init__(self, tx_id, amount, owner):
+        self.tx_id = tx_id
+        self.amount = amount
+        self.owner = owner
+
+    def __repr__(self):
+        return f"UTXO(tx_id={self.tx_id}, amount={self.amount}, owner={self.owner})"
 
 
 class Transaction:
-    def __init__(self, sender, receiver, amount):
-        self.sender = sender
-        self.receiver = receiver
-        self.amount = amount
+    def __init__(self, inputs, outputs):
+        self.inputs = inputs
+        self.outputs = outputs
         self.tx_id = self.calculate_hash()
 
     def calculate_hash(self):
-        tx_data = f"{self.sender}{self.receiver}{self.amount}"
+        tx_data = f"{[utxo.tx_id for utxo in self.inputs]}{[utxo.amount for utxo in self.outputs]}"
         return hashlib.sha256(tx_data.encode()).hexdigest()
 
 
@@ -62,27 +64,36 @@ class Block:
 class Blockchain:
     def __init__(self, difficulty):
         self.difficulty = difficulty
+        self.utxo_pool = {}
         self.chain = [self.create_genesis_block()]
         self.pending_transactions = []
 
     def create_genesis_block(self):
-        return Block("0", [], self.difficulty)
+        genesis_utxo = UTXO("genesis_tx", 1000000, "genesis_owner")
+        genesis_tx = Transaction([], [genesis_utxo])
+        self.utxo_pool[genesis_utxo.tx_id] = genesis_utxo  # UTXO pool is now initialized
+        return Block("0", [genesis_tx], self.difficulty)
 
     def add_block(self, transactions):
         prev_hash = self.chain[-1].block_hash
         new_block = Block(prev_hash, transactions, self.difficulty)
         self.chain.append(new_block)
+        for tx in transactions:
+            for utxo in tx.inputs:
+                if utxo.tx_id in self.utxo_pool:
+                    del self.utxo_pool[utxo.tx_id]
+            for utxo in tx.outputs:
+                self.utxo_pool[utxo.tx_id] = utxo
 
     def add_transaction(self, transaction):
-        self.pending_transactions.append(transaction)
+        if all(utxo.tx_id in self.utxo_pool for utxo in transaction.inputs):
+            self.pending_transactions.append(transaction)
 
     def mine_pending_transactions(self):
-        if len(self.pending_transactions) < 100:
+        if len(self.pending_transactions) < 1:
             return
-        selected_transactions = random.sample(self.pending_transactions, 100)
-        self.add_block(selected_transactions)
-        for tx in selected_transactions:
-            self.pending_transactions.remove(tx)
+        self.add_block(self.pending_transactions[:])
+        self.pending_transactions.clear()
 
 
 def generate_users(num_users):
@@ -90,28 +101,58 @@ def generate_users(num_users):
     for i in range(num_users):
         name = f"User{i}"
         public_key = hashlib.sha256(name.encode()).hexdigest()
-        balance = random.randint(100, 1000000)
-        users.append(User(name, public_key, balance))
+        users.append(User(name, public_key, []))
     return users
+
+
+class User:
+    """Represents a user with UTXOs."""
+    def __init__(self, name, public_key, utxos):
+        self.name = name
+        self.public_key = public_key
+        self.utxos = utxos
+
+    def balance(self):
+        return sum(utxo.amount for utxo in self.utxos)
 
 
 def generate_transactions(users, num_transactions):
     transactions = []
     for _ in range(num_transactions):
         sender = random.choice(users)
-        receiver = random.choice([user for user in users if user != sender])
-        amount = random.randint(1, sender.balance)
-        transactions.append(Transaction(sender.public_key, receiver.public_key, amount))
+        if sender.utxos:
+            utxo_to_spend = random.choice(sender.utxos)
+            receiver = random.choice([user for user in users if user != sender])
+            amount_to_send = random.randint(1, utxo_to_spend.amount)
+
+            receiver_utxo = UTXO(utxo_to_spend.tx_id, amount_to_send, receiver.public_key)
+            change_utxo = None
+            if utxo_to_spend.amount > amount_to_send:
+                change_utxo = UTXO(utxo_to_spend.tx_id + "_change", utxo_to_spend.amount - amount_to_send, sender.public_key)
+
+            new_tx = Transaction([utxo_to_spend], [receiver_utxo] + ([change_utxo] if change_utxo else []))
+
+            sender.utxos.remove(utxo_to_spend)
+            if change_utxo:
+                sender.utxos.append(change_utxo)
+            receiver.utxos.append(receiver_utxo)
+
+            transactions.append(new_tx)
+
     return transactions
 
 
-# Main logic
 if __name__ == "__main__":
-    users = generate_users(1000)
+    users = generate_users(10)
 
-    transactions = generate_transactions(users, 10000)
+    blockchain = Blockchain(difficulty=2)
 
-    blockchain = Blockchain(difficulty=4)
+    for user in users:
+        initial_utxo = UTXO(f"init_{user.public_key[:6]}", random.randint(100, 1000), user.public_key)
+        user.utxos.append(initial_utxo)
+        blockchain.utxo_pool[initial_utxo.tx_id] = initial_utxo
+
+    transactions = generate_transactions(users, 100)
 
     for tx in transactions:
         blockchain.add_transaction(tx)
@@ -121,3 +162,7 @@ if __name__ == "__main__":
 
     for idx, block in enumerate(blockchain.chain):
         print(f"Block {idx} - Hash: {block.block_hash}, Previous Hash: {block.prev_hash}")
+
+    print("\nFinal UTXO Pool:")
+    for utxo in blockchain.utxo_pool.values():
+        print(utxo)
