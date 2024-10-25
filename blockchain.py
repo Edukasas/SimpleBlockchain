@@ -1,6 +1,7 @@
-import hashlib
 import random
 import time
+
+from blockchain2.customhash import custom_hash
 
 
 class UTXO:
@@ -21,7 +22,7 @@ class Transaction:
 
     def calculate_hash(self):
         tx_data = f"{[utxo.tx_id for utxo in self.inputs]}{[utxo.amount for utxo in self.outputs]}"
-        return hashlib.sha256(tx_data.encode()).hexdigest()
+        return custom_hash(tx_data)
 
 
 class Block:
@@ -44,13 +45,13 @@ class Block:
             new_level = []
             for i in range(0, len(tx_ids), 2):
                 combined = tx_ids[i] + tx_ids[i + 1]
-                new_level.append(hashlib.sha256(combined.encode()).hexdigest())
+                new_level.append(custom_hash(combined.encode()))
             tx_ids = new_level
         return tx_ids[0]
 
     def calculate_hash(self):
         block_data = f"{self.prev_hash}{self.timestamp}{self.merkle_root}{self.nonce}{self.difficulty}"
-        return hashlib.sha256(block_data.encode()).hexdigest()
+        return custom_hash(block_data.encode())
 
     def mine_block(self):
         target = "0" * self.difficulty
@@ -100,13 +101,12 @@ def generate_users(num_users):
     users = []
     for i in range(num_users):
         name = f"User{i}"
-        public_key = hashlib.sha256(name.encode()).hexdigest()
+        public_key = custom_hash(name.encode())
         users.append(User(name, public_key, []))
     return users
 
 
 class User:
-    """Represents a user with UTXOs."""
     def __init__(self, name, public_key, utxos):
         self.name = name
         self.public_key = public_key
