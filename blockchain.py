@@ -24,6 +24,15 @@ class Transaction:
         tx_data = f"{[utxo.tx_id for utxo in self.inputs]}{[utxo.amount for utxo in self.outputs]}"
         return custom_hash(tx_data)
 
+    def print_transaction(self):
+        print(f"Transaction ID: {self.tx_id}")
+        print("Inputs:")
+        for utxo in self.inputs:
+            print(f"  - {utxo}")
+        print("Outputs:")
+        for utxo in self.outputs:
+            print(f"  - {utxo}")
+
 
 class Block:
     def __init__(self, prev_hash, transactions, difficulty):
@@ -96,6 +105,20 @@ class Blockchain:
         self.add_block(self.pending_transactions[:])
         self.pending_transactions.clear()
 
+    def print_block(self, block_index):
+        if 0 <= block_index < len(self.chain):
+            block = self.chain[block_index]
+            print(f"Block Index: {block_index}")
+            print(f"Block Hash: {block.block_hash}")
+            print(f"Previous Hash: {block.prev_hash}")
+            print(f"Merkle Root: {block.merkle_root}")
+            print(f"Timestamp: {block.timestamp}")
+            print("Transactions:")
+            for tx in block.transactions:
+                tx.print_transaction()
+        else:
+            print("Block index out of range.")
+
 
 def generate_users(num_users):
     users = []
@@ -128,7 +151,8 @@ def generate_transactions(users, num_transactions):
             receiver_utxo = UTXO(utxo_to_spend.tx_id, amount_to_send, receiver.public_key)
             change_utxo = None
             if utxo_to_spend.amount > amount_to_send:
-                change_utxo = UTXO(utxo_to_spend.tx_id + "_change", utxo_to_spend.amount - amount_to_send, sender.public_key)
+                change_utxo = UTXO(utxo_to_spend.tx_id + "_change", utxo_to_spend.amount - amount_to_send,
+                                   sender.public_key)
 
             new_tx = Transaction([utxo_to_spend], [receiver_utxo] + ([change_utxo] if change_utxo else []))
 
@@ -160,9 +184,8 @@ if __name__ == "__main__":
     while len(blockchain.pending_transactions) > 0:
         blockchain.mine_pending_transactions()
 
-    for idx, block in enumerate(blockchain.chain):
-        print(f"Block {idx} - Hash: {block.block_hash}, Previous Hash: {block.prev_hash}")
+    print("\nPrinting first transaction of the first block:")
+    blockchain.chain[0].transactions[0].print_transaction()
 
-    print("\nFinal UTXO Pool:")
-    for utxo in blockchain.utxo_pool.values():
-        print(utxo)
+    print("\nPrinting first block:")
+    blockchain.print_block(15)
