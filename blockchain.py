@@ -45,7 +45,7 @@ class Block:
         self.merkle_root = self.calculate_merkle_root()
         self.nonce = 0
         self.difficulty = difficulty
-        self.block_hash = self.mine_block()
+        self.block_hash = None
 
     def calculate_merkle_root(self):
         tx_ids = [tx.tx_id for tx in self.transactions]
@@ -64,14 +64,6 @@ class Block:
     def calculate_hash(self):
         block_data = f"{self.prev_hash}{self.timestamp}{self.merkle_root}{self.nonce}{self.difficulty}"
         return custom_hash(block_data.encode())
-
-    def mine_block(self):
-        target = "0" * self.difficulty
-        while True:
-            block_hash = self.calculate_hash()
-            if block_hash.startswith(target):
-                return block_hash
-            self.nonce += 1
 
 
 class Blockchain:
@@ -209,11 +201,11 @@ def generate_transactions(users, target_num_transactions):
 
             receiver = random.choice([user for user in users if user != sender])
 
-            receiver_utxo = UTXO(utxo_to_spend.tx_id, amount_to_send, receiver.public_key)
+            receiver_utxo = UTXO(uuid.uuid4(), amount_to_send, receiver.public_key)
             change_utxo = None
 
             if utxo_to_spend.amount > amount_to_send:
-                change_utxo = UTXO(utxo_to_spend.tx_id + "_change", utxo_to_spend.amount - amount_to_send,
+                change_utxo = UTXO(uuid.uuid4(), utxo_to_spend.amount - amount_to_send,
                                    sender.public_key)
 
             new_tx = Transaction([utxo_to_spend], [receiver_utxo] + ([change_utxo] if change_utxo else []))
