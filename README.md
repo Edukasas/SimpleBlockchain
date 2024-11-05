@@ -47,9 +47,10 @@ Each transaction is added to the blockchain using `blockchain.add_transaction(tr
 ### Mine Pending Transactions
 To process and secure the pending transactions in a new block, call:
 
-    blockchain.mine_pending_transactions()
+    blockchain.mine_pending_transactions_concurrently()
     
-Each mined block is appended to the chain, and the pending transactions are cleared.
+The mining process involves mining five candidate blocks simultaneously, with a timeout of 5 seconds or 100,000 iterations. 
+If no block is successfully mined within this time, the factors increase by 1.5 for each attempt until a valid block is found.
 
 ### Print Specific Transactions and Blocks
   The <b>print_transaction</b> function in <b>Transaction</b> and <b>print_block</b> function in <b>Blockchain</b> allow you to view details of any specific transaction or block.
