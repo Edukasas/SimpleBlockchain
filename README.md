@@ -68,3 +68,13 @@ Usage: Prints details of a specified block, including its hash, previous hash, m
 
     # To print the first block in the blockchain
     blockchain.print_block(0)
+
+## Good OOP practises used
+  Encapsulation, Abstraction, Single responsability principle, Code reuse through composition,
+  Polymorphism through Object Variability, Separation of Concerns with Helper Functions and Utilities, Thread Safety for Mining
+
+## Requirements
+ - You can output any block or transaction using print_transaction() or print_block() functions
+ - The blockchain uses merkel tree to generate the hash of the block
+ - The implementation uses UTXO model, it also checks if the balance is sufficient enough for use with verify_balance() function and checks if the ID of the transaction is the same as the transaction hash
+ - Parallel block mining is also implemented
